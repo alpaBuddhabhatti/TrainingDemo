@@ -16,13 +16,62 @@
 				}
 			],
 			"sinks": [],
-			"transformations": [],
+			"transformations": [
+				{
+					"name": "flatten1"
+				},
+				{
+					"name": "flatten2"
+				},
+				{
+					"name": "flatten3"
+				},
+				{
+					"name": "flatten4"
+				}
+			],
 			"scriptLines": [
-				"source(allowSchemaDrift: true,",
+				"source(output(",
+				"          applicant as (contactOrPublicationContact as (cityName as string, countryCode as string, geographicRegionName as (geographicRegionCategory as string, value as string), name as (personNameOrOrganizationNameOrEntityName as (organizationStandardName as (content as string[]))[]))[])[],",
+				"          partyIdentifierOrContact as (name as (personNameOrOrganizationNameOrEntityName as (personStructuredName as (lastName as string))[]), postalAddressBag as (postalAddress as (postalStructuredAddress as (addressLineText as (value as string)[], cityName as string, countryCode as string, geographicRegionName as (value as string)[], postalCode as integer))[]), value as integer)[]",
+				"     ),",
+				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false,",
-				"     documentForm: 'documentPerLine',",
-				"     wildcardPaths:[('File3 (4).json')]) ~> source2"
+				"     documentForm: 'arrayOfDocuments',",
+				"     wildcardPaths:[('File3 (4).json')]) ~> source2",
+				"source2 foldDown(unroll(applicant.contactOrPublicationContact),",
+				"     mapColumn(",
+				"          cityName = applicant.contactOrPublicationContact.cityName,",
+				"          geographicRegionCategory = applicant.contactOrPublicationContact.geographicRegionName.geographicRegionCategory,",
+				"          {geographicRegionName.value} = applicant.contactOrPublicationContact.geographicRegionName.value,",
+				"          organizationStandardName = applicant.contactOrPublicationContact.name.personNameOrOrganizationNameOrEntityName.organizationStandardName.content",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> flatten1",
+				"flatten1 foldDown(unroll(organizationStandardName),",
+				"     mapColumn(",
+				"          cityName,",
+				"          geographicRegionCategory,",
+				"          value = {geographicRegionName.value},",
+				"          organizationStandardName",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> flatten2",
+				"source2 foldDown(unroll(partyIdentifierOrContact),",
+				"     mapColumn(",
+				"          applicant,",
+				"          partyIdentifierOrContact",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> flatten3",
+				"flatten3 foldDown(unroll(),",
+				"     mapColumn(",
+				"          applicant,",
+				"          partyIdentifierOrContact",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> flatten4"
 			]
 		}
 	}
